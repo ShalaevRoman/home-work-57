@@ -1,0 +1,15 @@
+doctype html
+html
+  head
+    title User: #{user.name}
+    link(rel='stylesheet', href='/style.css')
+  body
+    a(href='/users') ← Back to Users
+    h1 #{user.name}
+    table
+      tr
+        th ID
+        td #{user.id}
+      tr
+        th Name
+        td #{user.name}

@@ -2,7 +2,7 @@ import { articles } from '../models/articles.mjs'
 
 export const getArticles = (req, res) => {
   const result = Array.from(articles.entries()).map(([id, data]) => ({ id, ...data }))
-  res.json(result)
+  res.render('articles.ejs', { articles: result })
 }
 
 export const createArticle = (req, res, next) => {
@@ -19,7 +19,7 @@ export const createArticle = (req, res, next) => {
 export const getArticleById = (req, res) => {
   const article = articles.get(req.params.articleId)
   if (!article) return res.status(404).send('Not Found')
-  res.json({ id: req.params.articleId, ...article })
+  res.render('article.ejs', { article: { id: req.params.articleId, ...article } })
 }
 
 export const updateArticle = (req, res) => {

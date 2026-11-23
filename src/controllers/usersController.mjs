@@ -2,7 +2,7 @@ import { users } from '../models/users.mjs'
 
 export const getUsers = (req, res) => {
   const result = Array.from(users.entries()).map(([id, data]) => ({ id, ...data }))
-  res.json(result)
+  res.render('users.pug', { users: result })
 }
 
 export const createUser = (req, res, next) => {
@@ -19,7 +19,7 @@ export const createUser = (req, res, next) => {
 export const getUserById = (req, res) => {
   const user = users.get(req.params.userId)
   if (!user) return res.status(404).send('Not Found')
-  res.json({ id: req.params.userId, ...user })
+  res.render('user.pug', { user: { id: req.params.userId, ...user } })
 }
 
 export const updateUser = (req, res) => {

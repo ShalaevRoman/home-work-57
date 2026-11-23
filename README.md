@@ -1,91 +1,53 @@
-# Express Server with Middlewares
+# Express Server with PUG & EJS Template Engines
 
-RESTful API сервер на базі Express.js з MVC архітектурою та мідлварами для логування, аутентифікації, валідації даних і управління доступом.
+Express сервер з MVC архітектурою, що використовує шаблонізатори **PUG** та **EJS** для рендерингу HTML сторінок.
 
-## Встановлення та запуск
+## Встановлення
 
 ```bash
 npm install
-npm start       # запуск на порту 3000
-npm run dev     # запуск з авто-перезавантаженням (nodemon)
-npm test        # запуск тестів
 ```
 
-## Структура проекту
+## Запуск
 
-```
-src/
-├── models/           # Зберігання даних (Map)
-├── controllers/      # Обробка бізнес-логіки
-├── routes/           # Маршрутизація
-├── middlewares/      # Мідлвари
-└── server.mjs        # Точка входу
+```bash
+node src/server.mjs
 ```
 
-## Мідлвари
+Сервер запускається на `http://localhost:3000`
 
-| Мідлвар | Маршрут | Призначення |
-|---------|---------|-------------|
-| `loggerMiddleware` | `GET /` | Логує метод, URL та час запиту |
-| `authMiddleware` | `/users/*` | Перевіряє хедер `x-auth-token` |
-| `validateUserMiddleware` | `POST/PUT /users` | Валідує поле `name` |
-| `validateArticleMiddleware` | `POST/PUT /articles` | Валідує поле `title` |
-| `articleAccessMiddleware` | `/articles/*` | Перевіряє роль з хедера `x-user-role` |
-| `notFoundHandler` | всі маршрути | Повертає 404 для невідомих шляхів |
-| `errorHandler` | всі маршрути | Повертає 500 при непередбачених помилках |
+## Шаблонізатори
+
+- **PUG** — використовується для маршрутів `/users` та `/users/:userId`
+- **EJS** — використовується для маршрутів `/articles` та `/articles/:articleId`
 
 ## Маршрути
 
-### `GET /`
-Повертає текст `Get root route`. Логується через `loggerMiddleware`.
+### Root
 
----
+| Метод | URL | Опис |
+|-------|-----|------|
+| GET | `/` | Повертає текст `Get root route` |
 
-### `GET /users`
-Повертає масив усіх користувачів.
-```json
-[{ "id": "1234", "name": "Alice" }]
-```
+### Users (PUG шаблони)
 
-### `POST /users`
-Створює нового користувача. Вимагає поле `name`.
-```json
-// body: { "name": "Bob" }
-// відповідь 201: { "id": "1234", "name": "Bob" }
-```
+| Метод | URL | Опис |
+|-------|-----|------|
+| GET | `/users` | HTML сторінка зі списком всіх користувачів |
+| POST | `/users` | Створити нового користувача `{ name: string }` |
+| GET | `/users/:userId` | HTML сторінка з деталями користувача |
+| PUT | `/users/:userId` | Оновити користувача `{ name: string }` |
+| DELETE | `/users/:userId` | Видалити користувача |
 
-### `GET /users/:userId`
-Повертає користувача за ID або `404 Not Found`.
+### Articles (EJS шаблони)
 
-### `PUT /users/:userId`
-Оновлює ім'я користувача. Вимагає поле `name`. Повертає `404` якщо не існує.
-
-### `DELETE /users/:userId`
-Видаляє користувача. Повертає `204 No Content` або `404 Not Found`.
-
----
-
-### `GET /articles`
-Повертає масив усіх статей.
-```json
-[{ "id": "1234", "title": "First Article" }]
-```
-
-### `POST /articles`
-Створює нову статтю. Вимагає поле `title`.
-```json
-// body: { "title": "My Article" }
-// відповідь 201: { "id": "1234", "title": "My Article" }
-```
-
-### `GET /articles/:articleId`
-Повертає статтю за ID або `404 Not Found`.
-
-### `PUT /articles/:articleId`
-Оновлює заголовок статті. Вимагає поле `title`. Повертає `404` якщо не існує.
-
-### `DELETE /articles/:articleId`
-Видаляє статтю. Повертає `204 No Content` або `404 Not Found`.
+| Метод | URL | Опис |
+|-------|-----|------|
+| GET | `/articles` | HTML сторінка зі списком всіх статей |
+| POST | `/articles` | Створити нову статтю `{ title: string }` |
+| GET | `/articles/:articleId` | HTML сторінка з деталями статті |
+| PUT | `/articles/:articleId` | Оновити статтю `{ title: string }` |
+| DELETE | `/articles/:articleId` | Видалити статтю |
 
 ## Коди відповідей
 
@@ -95,5 +57,35 @@ src/
 | `201` | Успішний POST (ресурс створено) |
 | `204` | Успішний DELETE (без тіла відповіді) |
 | `400` | Bad Request — відсутнє або порожнє обов'язкове поле |
-| `404` | Not Found — ресурс або маршрут не існує |
+| `404` | Not Found — ресурс не існує |
 | `500` | Internal Server Error — непередбачена помилка |
+
+## Структура проекту
+
+```
+src/
+  views/
+    users.pug        — HTML сторінка зі списком користувачів (PUG)
+    user.pug         — HTML сторінка з деталями користувача (PUG)
+    articles.ejs     — HTML сторінка зі списком статей (EJS)
+    article.ejs      — HTML сторінка з деталями статті (EJS)
+  public/
+    style.css        — CSS стилі
+  controllers/
+    usersController.mjs
+    articlesController.mjs
+  models/
+    users.mjs
+    articles.mjs
+  middlewares/
+    auth.mjs
+    validation.mjs
+    accessControl.mjs
+    errorHandler.mjs
+    logger.mjs
+  routes/
+    index.mjs
+    users.mjs
+    articles.mjs
+  server.mjs
+```

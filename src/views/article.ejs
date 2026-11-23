@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Article: <%= article.title %></title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <a href="/articles">← Back to Articles</a>
+    <h1><%= article.title %></h1>
+    <table>
+      <tr>
+        <th>ID</th>
+        <td><%= article.id %></td>
+      </tr>
+      <tr>
+        <th>Title</th>
+        <td><%= article.title %></td>
+      </tr>
+    </table>
+  </body>
+</html>

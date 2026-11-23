@@ -1,0 +1,15 @@
+doctype html
+html
+  head
+    title Users
+    link(rel='stylesheet', href='/style.css')
+  body
+    h1 Users
+    a(href='/') ← Home
+    if users.length === 0
+      p No users found
+    else
+      ul.list
+        each user in users
+          li
+            a(href='/users/' + user.id) #{user.name}
