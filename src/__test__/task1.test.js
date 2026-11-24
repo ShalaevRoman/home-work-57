@@ -7,14 +7,19 @@ let testArticleId
 let testUserName
 let testArticleTitle
 const NON_EXISTENT_ID = 'non-existent-id'
+let agent
 
 describe('Express REST API', () => {
   beforeAll(async () => {
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
+    // Створюємо agent щоб cookie з JWT токеном зберігалась між запитами
+    agent = request.agent(app)
+    await agent.post('/auth/register').send({ username: 'testuser', password: 'testpass' })
+
     // GET /users повертає HTML, тому тестові ID отримуємо через POST
-    const newUserResp = await request(app).post('/users').send({ name: 'Test User For ID' })
+    const newUserResp = await agent.post('/users').send({ name: 'Test User For ID' })
     testUserId = newUserResp.body.id
     testUserName = newUserResp.body.name
 
@@ -43,7 +48,7 @@ describe('Express REST API', () => {
   // Тестування маршрутів "/users"
   describe('Users Routes', () => {
     test('GET /users повинен повертати статус 200 та HTML-сторінку зі списком користувачів', async () => {
-      const response = await request(app).get('/users')
+      const response = await agent.get('/users')
 
       expect(response.status).toBe(200)
       expect(response.type).toMatch(/html/)
@@ -52,14 +57,14 @@ describe('Express REST API', () => {
 
     test('POST /users повинен повертати статус 201 та правильне повідомлення, і створювати користувача', async () => {
       const testName = 'New Test User ' + Date.now()
-      const response = await request(app).post('/users').send({ name: testName })
+      const response = await agent.post('/users').send({ name: testName })
 
       expect(response.status).toBe(201)
       expect(response.body).toHaveProperty('id')
       expect(response.body).toHaveProperty('name', testName)
 
       // Перевіряємо через GET /users/:id, що HTML містить дані нового користувача
-      const getResp = await request(app).get(`/users/${response.body.id}`)
+      const getResp = await agent.get(`/users/${response.body.id}`)
       expect(getResp.status).toBe(200)
       expect(getResp.type).toMatch(/html/)
       expect(getResp.text).toContain(response.body.id)
@@ -68,18 +73,18 @@ describe('Express REST API', () => {
 
     test('POST /users повинен повертати статус 400 при некоректних даних', async () => {
       // Перевіряємо порожній рядок
-      const response1 = await request(app).post('/users').send({ name: '' })
+      const response1 = await agent.post('/users').send({ name: '' })
       expect(response1.status).toBe(400)
       expect(response1.text).toMatch(/Bad Request/i)
 
       // Перевіряємо відсутність поля
-      const response2 = await request(app).post('/users').send({})
+      const response2 = await agent.post('/users').send({})
       expect(response2.status).toBe(400)
       expect(response2.text).toMatch(/Bad Request/i)
     })
 
     test('GET /users/:userId повинен повертати статус 200 та HTML-сторінку з даними користувача', async () => {
-      const response = await request(app).get(`/users/${testUserId}`)
+      const response = await agent.get(`/users/${testUserId}`)
 
       expect(response.status).toBe(200)
       expect(response.type).toMatch(/html/)
@@ -88,7 +93,7 @@ describe('Express REST API', () => {
     })
 
     test('GET /users/:userId повинен повертати статус 404 для неіснуючого користувача', async () => {
-      const response = await request(app).get(`/users/${NON_EXISTENT_ID}`)
+      const response = await agent.get(`/users/${NON_EXISTENT_ID}`)
 
       expect(response.status).toBe(404)
       expect(response.text).toMatch(/Not Found/i)
@@ -96,7 +101,7 @@ describe('Express REST API', () => {
 
     test('PUT /users/:userId повинен повертати статус 200, правильне повідомлення та оновлювати користувача', async () => {
       const newName = 'Updated User ' + Date.now()
-      const response = await request(app).put(`/users/${testUserId}`).send({ name: newName })
+      const response = await agent.put(`/users/${testUserId}`).send({ name: newName })
 
       expect(response.status).toBe(200)
       expect(response.body).toEqual({
@@ -105,7 +110,7 @@ describe('Express REST API', () => {
       })
 
       // Перевіряємо через GET /users/:userId, що HTML містить оновлені дані
-      const getResp = await request(app).get(`/users/${testUserId}`)
+      const getResp = await agent.get(`/users/${testUserId}`)
       expect(getResp.status).toBe(200)
       expect(getResp.type).toMatch(/html/)
       expect(getResp.text).toContain(newName)
@@ -115,18 +120,18 @@ describe('Express REST API', () => {
 
     test('PUT /users/:userId повинен повертати статус 400 при некоректних даних', async () => {
       // Перевіряємо порожній рядок
-      const response1 = await request(app).put(`/users/${testUserId}`).send({ name: '' })
+      const response1 = await agent.put(`/users/${testUserId}`).send({ name: '' })
       expect(response1.status).toBe(400)
       expect(response1.text).toMatch(/Bad Request/i)
 
       // Перевіряємо відсутність поля
-      const response2 = await request(app).put(`/users/${testUserId}`).send({})
+      const response2 = await agent.put(`/users/${testUserId}`).send({})
       expect(response2.status).toBe(400)
       expect(response2.text).toMatch(/Bad Request/i)
     })
 
     test('PUT /users/:userId повинен повертати статус 404 для неіснуючого користувача', async () => {
-      const response = await request(app).put(`/users/${NON_EXISTENT_ID}`).send({ name: 'Updated User' })
+      const response = await agent.put(`/users/${NON_EXISTENT_ID}`).send({ name: 'Updated User' })
 
       expect(response.status).toBe(404)
       expect(response.text).toMatch(/Not Found/i)
@@ -134,21 +139,21 @@ describe('Express REST API', () => {
 
     test('DELETE /users/:userId повинен повертати статус 204 без вмісту та видаляти користувача', async () => {
       // Створюємо тимчасового користувача для видалення через API
-      const createResp = await request(app).post('/users').send({ name: 'Temporary User' })
+      const createResp = await agent.post('/users').send({ name: 'Temporary User' })
       const tempUserId = createResp.body.id
 
-      const deleteResp = await request(app).delete(`/users/${tempUserId}`)
+      const deleteResp = await agent.delete(`/users/${tempUserId}`)
       expect(deleteResp.status).toBe(204)
       expect(deleteResp.text).toBe('')
 
       // Перевіряємо через GET /users/:id, що користувача видалено
-      const getAfter = await request(app).get(`/users/${tempUserId}`)
+      const getAfter = await agent.get(`/users/${tempUserId}`)
       expect(getAfter.status).toBe(404)
       expect(getAfter.text).toMatch(/Not Found/i)
     })
 
     test('DELETE /users/:userId повинен повертати статус 404 для неіснуючого користувача', async () => {
-      const response = await request(app).delete(`/users/${NON_EXISTENT_ID}`)
+      const response = await agent.delete(`/users/${NON_EXISTENT_ID}`)
 
       expect(response.status).toBe(404)
       expect(response.text).toMatch(/Not Found/i)
@@ -280,11 +285,12 @@ describe('Express REST API', () => {
     })
 
     test('Глобальна обробка помилок повинна повертати статус 500', async () => {
-      vi.spyOn(Date, 'now').mockImplementationOnce(() => {
+      const usersModel = await import('../models/users.mjs')
+      vi.spyOn(usersModel.users, 'set').mockImplementationOnce(() => {
         throw new Error('Test internal error')
       })
 
-      const response = await request(app).post('/users').send({ name: 'Error User' })
+      const response = await agent.post('/users').send({ name: 'Error User' })
 
       expect(response.status).toBe(500)
       expect(response.text).toMatch(/Internal Server Error/i)

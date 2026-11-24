@@ -7,4 +7,18 @@ router.get('/', loggerMiddleware, (req, res) => {
   res.send('Get root route')
 })
 
+router.post('/theme', (req, res) => {
+  const { theme } = req.body
+  if (!theme || typeof theme !== 'string') {
+    return res.status(400).send('Bad Request')
+  }
+  res.cookie('theme', theme, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true })
+  res.json({ theme })
+})
+
+router.get('/theme', (req, res) => {
+  const theme = req.cookies.theme || 'light'
+  res.json({ theme })
+})
+
 export default router
