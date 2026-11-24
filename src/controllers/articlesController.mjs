@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { articles } from '../models/articles.mjs'
 
 export const getArticles = (req, res) => {
@@ -8,7 +9,7 @@ export const getArticles = (req, res) => {
 export const createArticle = (req, res, next) => {
   try {
     const { title } = req.body
-    const id = String(Date.now())
+    const id = randomUUID()
     articles.set(id, { title })
     res.status(201).json({ id, title })
   } catch (err) {

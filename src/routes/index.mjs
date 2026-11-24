@@ -8,8 +8,9 @@ router.get('/', loggerMiddleware, (req, res) => {
 })
 
 router.post('/theme', (req, res) => {
+  if (!req.body) return res.status(400).send('Bad Request')
   const { theme } = req.body
-  if (!theme || typeof theme !== 'string') {
+  if (!theme || typeof theme !== 'string' || theme.trim() === '') {
     return res.status(400).send('Bad Request')
   }
   res.cookie('theme', theme, { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true })

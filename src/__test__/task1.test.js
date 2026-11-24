@@ -298,4 +298,119 @@ describe('Express REST API', () => {
       vi.restoreAllMocks()
     })
   })
+
+  // Тестування JWT авторизації
+  describe('JWT Auth', () => {
+    test('GET /users без токену повинен повертати статус 401', async () => {
+      const response = await request(app).get('/users')
+
+      expect(response.status).toBe(401)
+      expect(response.text).toMatch(/Unauthorized/i)
+    })
+
+    test('GET /users з невалідним токеном повинен повертати статус 401', async () => {
+      const response = await request(app)
+        .get('/users')
+        .set('Cookie', 'token=invalid.token.here')
+
+      expect(response.status).toBe(401)
+      expect(response.text).toMatch(/Unauthorized/i)
+    })
+
+    test('POST /auth/register повинен повертати статус 201 та дані користувача', async () => {
+      const response = await request(app)
+        .post('/auth/register')
+        .send({ username: 'newuser', password: 'newpass' })
+
+      expect(response.status).toBe(201)
+      expect(response.body).toHaveProperty('id')
+      expect(response.body).toHaveProperty('username', 'newuser')
+    })
+
+    test('POST /auth/register з тим самим username повинен повертати статус 409', async () => {
+      await request(app).post('/auth/register').send({ username: 'dupuser', password: 'pass' })
+      const response = await request(app)
+        .post('/auth/register')
+        .send({ username: 'dupuser', password: 'pass' })
+
+      expect(response.status).toBe(409)
+      expect(response.text).toMatch(/already exists/i)
+    })
+
+    test('POST /auth/login з неправильним паролем повинен повертати статус 401', async () => {
+      await request(app).post('/auth/register').send({ username: 'loginuser', password: 'correctpass' })
+      const response = await request(app)
+        .post('/auth/login')
+        .send({ username: 'loginuser', password: 'wrongpass' })
+
+      expect(response.status).toBe(401)
+      expect(response.text).toMatch(/Unauthorized/i)
+    })
+
+    test('POST /auth/login з неіснуючим username повинен повертати статус 401', async () => {
+      const response = await request(app)
+        .post('/auth/login')
+        .send({ username: 'nonexistent', password: 'pass' })
+
+      expect(response.status).toBe(401)
+      expect(response.text).toMatch(/Unauthorized/i)
+    })
+  })
+
+  // Тестування cookie теми
+  describe('Theme Cookie', () => {
+    test('POST /theme повинен зберегти тему і повернути статус 200', async () => {
+      const response = await request(app)
+        .post('/theme')
+        .send({ theme: 'dark' })
+
+      expect(response.status).toBe(200)
+      expect(response.body).toEqual({ theme: 'dark' })
+    })
+
+    test('GET /theme повинен повернути збережену тему', async () => {
+      const themeAgent = request.agent(app)
+      await themeAgent.post('/theme').send({ theme: 'dark' })
+      const response = await themeAgent.get('/theme')
+
+      expect(response.status).toBe(200)
+      expect(response.body).toEqual({ theme: 'dark' })
+    })
+
+    test('GET /theme без cookie повинен повернути тему за замовчуванням', async () => {
+      const response = await request(app).get('/theme')
+
+      expect(response.status).toBe(200)
+      expect(response.body).toEqual({ theme: 'light' })
+    })
+  })
+
+  // Тестування унікальності ID
+  describe('Unique IDs', () => {
+    test('Кілька створених користувачів повинні мати унікальні ID', async () => {
+      const responses = await Promise.all([
+        agent.post('/users').send({ name: 'User A' }),
+        agent.post('/users').send({ name: 'User B' }),
+        agent.post('/users').send({ name: 'User C' }),
+      ])
+
+      const ids = responses.map(r => r.body.id)
+      const uniqueIds = new Set(ids)
+
+      expect(uniqueIds.size).toBe(3)
+    })
+
+    test('Кілька створених статей повинні мати унікальні ID', async () => {
+      const responses = await Promise.all([
+        request(app).post('/articles').send({ title: 'Article A' }),
+        request(app).post('/articles').send({ title: 'Article B' }),
+        request(app).post('/articles').send({ title: 'Article C' }),
+      ])
+
+      const ids = responses.map(r => r.body.id)
+      const uniqueIds = new Set(ids)
+
+      expect(uniqueIds.size).toBe(3)
+    })
+  })
 })

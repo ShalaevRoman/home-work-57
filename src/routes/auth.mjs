@@ -7,8 +7,10 @@ const router = Router()
 const registeredUsers = new Map()
 
 router.post('/register', (req, res) => {
+  if (!req.body) return res.status(400).send('Bad Request')
   const { username, password } = req.body
-  if (!username || typeof username !== 'string' || !password || typeof password !== 'string') {
+  if (!username || typeof username !== 'string' || username.trim() === '' ||
+      !password || typeof password !== 'string' || password.trim() === '') {
     return res.status(400).send('Bad Request')
   }
   if ([...registeredUsers.values()].find(u => u.username === username)) {
@@ -22,8 +24,10 @@ router.post('/register', (req, res) => {
 })
 
 router.post('/login', (req, res) => {
+  if (!req.body) return res.status(400).send('Bad Request')
   const { username, password } = req.body
-  if (!username || typeof username !== 'string' || !password || typeof password !== 'string') {
+  if (!username || typeof username !== 'string' || username.trim() === '' ||
+      !password || typeof password !== 'string' || password.trim() === '') {
     return res.status(400).send('Bad Request')
   }
   const user = [...registeredUsers.values()].find(u => u.username === username && u.password === password)

@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 
-export const SECRET = 'jwt_secret_key'
+export const SECRET = process.env.JWT_SECRET
 
 export function authMiddleware(req, res, next) {
   const token = req.cookies.token

@@ -1,14 +1,14 @@
 import { Router } from 'express'
-import { articleAccessMiddleware } from '../middlewares/accessControl.mjs'
+import { extractUserRoleMiddleware } from '../middlewares/accessControl.mjs'
 import { validateArticleMiddleware } from '../middlewares/validation.mjs'
 import * as articlesController from '../controllers/articlesController.mjs'
 
 const router = Router()
 
-router.get('/', articleAccessMiddleware, articlesController.getArticles)
-router.post('/', articleAccessMiddleware, validateArticleMiddleware, articlesController.createArticle)
-router.get('/:articleId', articleAccessMiddleware, articlesController.getArticleById)
-router.put('/:articleId', articleAccessMiddleware, validateArticleMiddleware, articlesController.updateArticle)
-router.delete('/:articleId', articleAccessMiddleware, articlesController.deleteArticle)
+router.get('/', extractUserRoleMiddleware, articlesController.getArticles)
+router.post('/', extractUserRoleMiddleware, validateArticleMiddleware, articlesController.createArticle)
+router.get('/:articleId', extractUserRoleMiddleware, articlesController.getArticleById)
+router.put('/:articleId', extractUserRoleMiddleware, validateArticleMiddleware, articlesController.updateArticle)
+router.delete('/:articleId', extractUserRoleMiddleware, articlesController.deleteArticle)
 
 export default router

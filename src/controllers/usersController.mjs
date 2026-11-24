@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { users } from '../models/users.mjs'
 
 export const getUsers = (req, res) => {
@@ -8,7 +9,7 @@ export const getUsers = (req, res) => {
 export const createUser = (req, res, next) => {
   try {
     const { name } = req.body
-    const id = String(Date.now())
+    const id = randomUUID()
     users.set(id, { name })
     res.status(201).json({ id, name })
   } catch (err) {

@@ -1,5 +1,4 @@
-export function articleAccessMiddleware(req, res, next) {
-  const userRole = req.headers['x-user-role'] || 'viewer'
-  req.userRole = userRole
+export function extractUserRoleMiddleware(req, res, next) {
+  req.userRole = req.headers['x-user-role'] || 'viewer'
   next()
 }
