@@ -1,8 +1,7 @@
 import { app, server } from '../server.mjs'
-import { describe, test, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
+import { describe, test, expect, beforeAll, afterAll, vi } from 'vitest'
 import request from 'supertest'
 
-// Змінні для зберігання тестових ID
 let testUserId
 let testArticleId
 let testUserName
@@ -11,35 +10,20 @@ const NON_EXISTENT_ID = 'non-existent-id'
 
 describe('Express REST API', () => {
   beforeAll(async () => {
-    // Створюємо спай для запобігання виводу логів під час тестів
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    // Отримуємо існуючі дані через API
-    const usersResp = await request(app).get('/users')
-    if (usersResp.body.length > 0) {
-      testUserId = usersResp.body[0].id
-      testUserName = usersResp.body[0].name
-    } else {
-      const newUserResp = await request(app).post('/users').send({ name: 'Test User For ID' })
-      testUserId = newUserResp.body.id
-      testUserName = newUserResp.body.name
-    }
+    // GET /users повертає HTML, тому тестові ID отримуємо через POST
+    const newUserResp = await request(app).post('/users').send({ name: 'Test User For ID' })
+    testUserId = newUserResp.body.id
+    testUserName = newUserResp.body.name
 
-    // Аналогічно для статей
-    const articlesResp = await request(app).get('/articles')
-    if (articlesResp.body.length > 0) {
-      testArticleId = articlesResp.body[0].id
-      testArticleTitle = articlesResp.body[0].title
-    } else {
-      const newArticleResp = await request(app).post('/articles').send({ title: 'Test Article For ID' })
-      testArticleId = newArticleResp.body.id
-      testArticleTitle = newArticleResp.body.title
-    }
+    const newArticleResp = await request(app).post('/articles').send({ title: 'Test Article For ID' })
+    testArticleId = newArticleResp.body.id
+    testArticleTitle = newArticleResp.body.title
   })
 
   afterAll(() => {
-    // Закриваємо сервер після тестів
     if (server && server.listening) {
       server.close()
     }
@@ -58,16 +42,12 @@ describe('Express REST API', () => {
 
   // Тестування маршрутів "/users"
   describe('Users Routes', () => {
-    test('GET /users повинен повертати статус 200 та правильне повідомлення', async () => {
+    test('GET /users повинен повертати статус 200 та HTML-сторінку зі списком користувачів', async () => {
       const response = await request(app).get('/users')
 
       expect(response.status).toBe(200)
-      expect(response.body).toBeInstanceOf(Array)
-      expect(response.body.length).toBeGreaterThan(0)
-      response.body.forEach((user) => {
-        expect(user).toHaveProperty('id')
-        expect(user).toHaveProperty('name')
-      })
+      expect(response.type).toMatch(/html/)
+      expect(response.text).toContain(testUserName)
     })
 
     test('POST /users повинен повертати статус 201 та правильне повідомлення, і створювати користувача', async () => {
@@ -77,10 +57,13 @@ describe('Express REST API', () => {
       expect(response.status).toBe(201)
       expect(response.body).toHaveProperty('id')
       expect(response.body).toHaveProperty('name', testName)
-      // Перевіряємо через GET /users/:id
+
+      // Перевіряємо через GET /users/:id, що HTML містить дані нового користувача
       const getResp = await request(app).get(`/users/${response.body.id}`)
       expect(getResp.status).toBe(200)
-      expect(getResp.body).toEqual({ id: response.body.id, name: testName })
+      expect(getResp.type).toMatch(/html/)
+      expect(getResp.text).toContain(response.body.id)
+      expect(getResp.text).toContain(testName)
     })
 
     test('POST /users повинен повертати статус 400 при некоректних даних', async () => {
@@ -95,14 +78,13 @@ describe('Express REST API', () => {
       expect(response2.text).toMatch(/Bad Request/i)
     })
 
-    test('GET /users/:userId повинен повертати статус 200 та правильне повідомлення з ID', async () => {
+    test('GET /users/:userId повинен повертати статус 200 та HTML-сторінку з даними користувача', async () => {
       const response = await request(app).get(`/users/${testUserId}`)
 
       expect(response.status).toBe(200)
-      expect(response.body).toEqual({
-        id: testUserId,
-        name: testUserName
-      })
+      expect(response.type).toMatch(/html/)
+      expect(response.text).toContain(testUserId)
+      expect(response.text).toContain(testUserName)
     })
 
     test('GET /users/:userId повинен повертати статус 404 для неіснуючого користувача', async () => {
@@ -122,10 +104,13 @@ describe('Express REST API', () => {
         name: newName
       })
 
-      // Перевіряємо через GET /users/:userId, що дані оновилися
+      // Перевіряємо через GET /users/:userId, що HTML містить оновлені дані
       const getResp = await request(app).get(`/users/${testUserId}`)
       expect(getResp.status).toBe(200)
-      expect(getResp.body).toEqual({ id: testUserId, name: newName })
+      expect(getResp.type).toMatch(/html/)
+      expect(getResp.text).toContain(newName)
+
+      testUserName = newName
     })
 
     test('PUT /users/:userId повинен повертати статус 400 при некоректних даних', async () => {
@@ -172,16 +157,12 @@ describe('Express REST API', () => {
 
   // Тестування маршрутів "/articles"
   describe('Articles Routes', () => {
-    test('GET /articles повинен повертати статус 200 та правильне повідомлення', async () => {
+    test('GET /articles повинен повертати статус 200 та HTML-сторінку зі списком статей', async () => {
       const response = await request(app).get('/articles')
 
       expect(response.status).toBe(200)
-      expect(response.body).toBeInstanceOf(Array)
-      expect(response.body.length).toBeGreaterThan(0)
-      response.body.forEach((article) => {
-        expect(article).toHaveProperty('id')
-        expect(article).toHaveProperty('title')
-      })
+      expect(response.type).toMatch(/html/)
+      expect(response.text).toContain(testArticleTitle)
     })
 
     test('POST /articles повинен повертати статус 201 та правильне повідомлення, і створювати статтю', async () => {
@@ -191,10 +172,13 @@ describe('Express REST API', () => {
       expect(response.status).toBe(201)
       expect(response.body).toHaveProperty('id')
       expect(response.body).toHaveProperty('title', testTitle)
-      // Перевіряємо через GET /articles/:id
+
+      // Перевіряємо через GET /articles/:id, що HTML містить дані нової статті
       const getResp = await request(app).get(`/articles/${response.body.id}`)
       expect(getResp.status).toBe(200)
-      expect(getResp.body).toEqual({ id: response.body.id, title: testTitle })
+      expect(getResp.type).toMatch(/html/)
+      expect(getResp.text).toContain(response.body.id)
+      expect(getResp.text).toContain(testTitle)
     })
 
     test('POST /articles повинен повертати статус 400 при некоректних даних', async () => {
@@ -209,14 +193,13 @@ describe('Express REST API', () => {
       expect(response2.text).toMatch(/Bad Request/i)
     })
 
-    test('GET /articles/:articleId повинен повертати статус 200 та правильне повідомлення з ID', async () => {
+    test('GET /articles/:articleId повинен повертати статус 200 та HTML-сторінку з даними статті', async () => {
       const response = await request(app).get(`/articles/${testArticleId}`)
 
       expect(response.status).toBe(200)
-      expect(response.body).toEqual({
-        id: testArticleId,
-        title: testArticleTitle
-      })
+      expect(response.type).toMatch(/html/)
+      expect(response.text).toContain(testArticleId)
+      expect(response.text).toContain(testArticleTitle)
     })
 
     test('GET /articles/:articleId повинен повертати статус 404 для неіснуючої статті', async () => {
@@ -236,10 +219,13 @@ describe('Express REST API', () => {
         title: newTitle
       })
 
-      // Перевіряємо через GET /articles/:id, що дані оновилися
+      // Перевіряємо через GET /articles/:id, що HTML містить оновлені дані
       const getResp = await request(app).get(`/articles/${testArticleId}`)
       expect(getResp.status).toBe(200)
-      expect(getResp.body).toEqual({ id: testArticleId, title: newTitle })
+      expect(getResp.type).toMatch(/html/)
+      expect(getResp.text).toContain(newTitle)
+
+      testArticleTitle = newTitle
     })
 
     test('PUT /articles/:articleId повинен повертати статус 400 при некоректних даних', async () => {
@@ -294,7 +280,6 @@ describe('Express REST API', () => {
     })
 
     test('Глобальна обробка помилок повинна повертати статус 500', async () => {
-      // Симулюємо непередбачувану помилку в додатку, мокуючи Date.now
       vi.spyOn(Date, 'now').mockImplementationOnce(() => {
         throw new Error('Test internal error')
       })
@@ -303,7 +288,7 @@ describe('Express REST API', () => {
 
       expect(response.status).toBe(500)
       expect(response.text).toMatch(/Internal Server Error/i)
-      
+
       vi.restoreAllMocks()
     })
   })
