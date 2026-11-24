@@ -28,8 +28,17 @@ node src/server.mjs
 | Метод | URL | Опис |
 |-------|-----|------|
 | GET | `/` | Повертає текст `Get root route` |
+| POST | `/theme` | Зберегти тему оформлення в cookie `{ theme: string }` |
+| GET | `/theme` | Отримати поточну тему з cookie |
 
-### Users (PUG шаблони)
+### Auth (JWT авторизація)
+
+| Метод | URL | Опис |
+|-------|-----|------|
+| POST | `/auth/register` | Реєстрація `{ username: string, password: string }` → JWT в httpOnly cookie |
+| POST | `/auth/login` | Вхід `{ username: string, password: string }` → JWT в httpOnly cookie |
+
+### Users (PUG шаблони, потребують JWT)
 
 | Метод | URL | Опис |
 |-------|-----|------|
@@ -49,6 +58,14 @@ node src/server.mjs
 | PUT | `/articles/:articleId` | Оновити статтю `{ title: string }` |
 | DELETE | `/articles/:articleId` | Видалити статтю |
 
+## Авторизація
+
+Маршрути `/users` захищені JWT. Для доступу потрібно:
+1. Зареєструватись: `POST /auth/register`
+2. Або увійти: `POST /auth/login`
+
+Токен зберігається автоматично в `httpOnly` cookie і передається при кожному запиті.
+
 ## Коди відповідей
 
 | Код | Опис |
@@ -57,7 +74,9 @@ node src/server.mjs
 | `201` | Успішний POST (ресурс створено) |
 | `204` | Успішний DELETE (без тіла відповіді) |
 | `400` | Bad Request — відсутнє або порожнє обов'язкове поле |
+| `401` | Unauthorized — відсутній або невалідний JWT токен |
 | `404` | Not Found — ресурс не існує |
+| `409` | Conflict — користувач вже існує |
 | `500` | Internal Server Error — непередбачена помилка |
 
 ## Структура проекту
@@ -71,6 +90,7 @@ src/
     article.ejs      — HTML сторінка з деталями статті (EJS)
   public/
     style.css        — CSS стилі
+    favicon.ico      — іконка сайту
   controllers/
     usersController.mjs
     articlesController.mjs
@@ -78,13 +98,14 @@ src/
     users.mjs
     articles.mjs
   middlewares/
-    auth.mjs
+    auth.mjs         — JWT перевірка
     validation.mjs
     accessControl.mjs
     errorHandler.mjs
     logger.mjs
   routes/
-    index.mjs
+    index.mjs        — кореневі маршрути + тема
+    auth.mjs         — реєстрація та логін
     users.mjs
     articles.mjs
   server.mjs
