@@ -16,7 +16,8 @@ describe('Express REST API', () => {
 
     // Створюємо agent щоб cookie з JWT токеном зберігалась між запитами
     agent = request.agent(app)
-    await agent.post('/auth/register').send({ username: 'testuser', password: 'testpass' })
+    await agent.post('/auth/register').send({ email: 'testuser@test.com', password: 'testpass' })
+    await agent.post('/auth/login').send({ email: 'testuser@test.com', password: 'testpass' })
 
     // GET /users повертає HTML, тому тестові ID отримуємо через POST
     const newUserResp = await agent.post('/users').send({ name: 'Test User For ID' })
@@ -299,61 +300,104 @@ describe('Express REST API', () => {
     })
   })
 
-  // Тестування JWT авторизації
-  describe('JWT Auth', () => {
-    test('GET /users без токену повинен повертати статус 401', async () => {
+  // Тестування Passport авторизації
+  describe('Passport Auth', () => {
+    test('GET /users без сесії повинен повертати статус 401', async () => {
       const response = await request(app).get('/users')
 
       expect(response.status).toBe(401)
       expect(response.text).toMatch(/Unauthorized/i)
     })
 
-    test('GET /users з невалідним токеном повинен повертати статус 401', async () => {
-      const response = await request(app)
-        .get('/users')
-        .set('Cookie', 'token=invalid.token.here')
-
-      expect(response.status).toBe(401)
-      expect(response.text).toMatch(/Unauthorized/i)
-    })
-
-    test('POST /auth/register повинен повертати статус 201 та дані користувача', async () => {
+    test('POST /auth/register повинен повертати статус 201 та дані користувача без пароля', async () => {
       const response = await request(app)
         .post('/auth/register')
-        .send({ username: 'newuser', password: 'newpass' })
+        .send({ email: 'newuser@test.com', password: 'newpass' })
 
       expect(response.status).toBe(201)
       expect(response.body).toHaveProperty('id')
-      expect(response.body).toHaveProperty('username', 'newuser')
+      expect(response.body).toHaveProperty('email', 'newuser@test.com')
+      expect(response.body).not.toHaveProperty('password')
     })
 
-    test('POST /auth/register з тим самим username повинен повертати статус 409', async () => {
-      await request(app).post('/auth/register').send({ username: 'dupuser', password: 'pass' })
+    test('POST /auth/register з тим самим email повинен повертати статус 409', async () => {
+      await request(app).post('/auth/register').send({ email: 'dup@test.com', password: 'pass' })
       const response = await request(app)
         .post('/auth/register')
-        .send({ username: 'dupuser', password: 'pass' })
+        .send({ email: 'dup@test.com', password: 'pass' })
 
       expect(response.status).toBe(409)
       expect(response.text).toMatch(/already exists/i)
     })
 
+    test('POST /auth/register без обовязкових полів повинен повертати статус 400', async () => {
+      const response = await request(app)
+        .post('/auth/register')
+        .send({ email: '', password: '' })
+
+      expect(response.status).toBe(400)
+    })
+
     test('POST /auth/login з неправильним паролем повинен повертати статус 401', async () => {
-      await request(app).post('/auth/register').send({ username: 'loginuser', password: 'correctpass' })
+      await request(app).post('/auth/register').send({ email: 'login@test.com', password: 'correctpass' })
       const response = await request(app)
         .post('/auth/login')
-        .send({ username: 'loginuser', password: 'wrongpass' })
+        .send({ email: 'login@test.com', password: 'wrongpass' })
+
+      expect(response.status).toBe(401)
+    })
+
+    test('POST /auth/login з неіснуючим email повинен повертати статус 401', async () => {
+      const response = await request(app)
+        .post('/auth/login')
+        .send({ email: 'nobody@test.com', password: 'pass' })
+
+      expect(response.status).toBe(401)
+    })
+  })
+
+  // Тестування захищеного маршруту та logout
+  describe('Protected Route & Logout', () => {
+    test('GET /protected без сесії повинен повертати статус 401', async () => {
+      const response = await request(app).get('/protected')
 
       expect(response.status).toBe(401)
       expect(response.text).toMatch(/Unauthorized/i)
     })
 
-    test('POST /auth/login з неіснуючим username повинен повертати статус 401', async () => {
-      const response = await request(app)
-        .post('/auth/login')
-        .send({ username: 'nonexistent', password: 'pass' })
+    test('GET /protected з активною сесією повинен повертати статус 200 та дані без пароля', async () => {
+      const authAgent = request.agent(app)
+      await authAgent.post('/auth/register').send({ email: 'protected@test.com', password: 'pass123' })
+      await authAgent.post('/auth/login').send({ email: 'protected@test.com', password: 'pass123' })
+
+      const response = await authAgent.get('/protected')
+
+      expect(response.status).toBe(200)
+      expect(response.body).toHaveProperty('message', 'Protected data')
+      expect(response.body.user).toHaveProperty('email', 'protected@test.com')
+      expect(response.body.user).not.toHaveProperty('password')
+    })
+
+    test('POST /auth/logout повинен повертати статус 200', async () => {
+      const authAgent = request.agent(app)
+      await authAgent.post('/auth/register').send({ email: 'logout@test.com', password: 'pass123' })
+      await authAgent.post('/auth/login').send({ email: 'logout@test.com', password: 'pass123' })
+
+      const response = await authAgent.post('/auth/logout')
+
+      expect(response.status).toBe(200)
+      expect(response.body).toHaveProperty('message', 'Logged out')
+    })
+
+    test('GET /protected після logout повинен повертати статус 401', async () => {
+      const authAgent = request.agent(app)
+      await authAgent.post('/auth/register').send({ email: 'afterlogout@test.com', password: 'pass123' })
+      await authAgent.post('/auth/login').send({ email: 'afterlogout@test.com', password: 'pass123' })
+      await authAgent.post('/auth/logout')
+
+      const response = await authAgent.get('/protected')
 
       expect(response.status).toBe(401)
-      expect(response.text).toMatch(/Unauthorized/i)
     })
   })
 

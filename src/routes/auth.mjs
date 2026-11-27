@@ -1,42 +1,39 @@
 import { Router } from 'express'
-import jwt from 'jsonwebtoken'
 import { randomUUID } from 'crypto'
-import { SECRET } from '../middlewares/auth.mjs'
+import passport, { users } from '../config/passport.mjs'
 
 const router = Router()
-const registeredUsers = new Map()
 
 router.post('/register', (req, res) => {
   if (!req.body) return res.status(400).send('Bad Request')
-  const { username, password } = req.body
-  if (!username || typeof username !== 'string' || username.trim() === '' ||
+  const { email, password } = req.body
+  if (!email || typeof email !== 'string' || email.trim() === '' ||
       !password || typeof password !== 'string' || password.trim() === '') {
     return res.status(400).send('Bad Request')
   }
-  if ([...registeredUsers.values()].find(u => u.username === username)) {
+  if ([...users.values()].find(u => u.email === email)) {
     return res.status(409).send('User already exists')
   }
   const id = randomUUID()
-  registeredUsers.set(id, { id, username, password })
-  const token = jwt.sign({ id, username }, SECRET, { expiresIn: '1h' })
-  res.cookie('token', token, { httpOnly: true, maxAge: 60 * 60 * 1000 })
-  res.status(201).json({ id, username })
+  users.set(id, { id, email, password })
+  res.status(201).json({ id, email })
 })
 
-router.post('/login', (req, res) => {
-  if (!req.body) return res.status(400).send('Bad Request')
-  const { username, password } = req.body
-  if (!username || typeof username !== 'string' || username.trim() === '' ||
-      !password || typeof password !== 'string' || password.trim() === '') {
-    return res.status(400).send('Bad Request')
-  }
-  const user = [...registeredUsers.values()].find(u => u.username === username && u.password === password)
-  if (!user) {
-    return res.status(401).send('Unauthorized')
-  }
-  const token = jwt.sign({ id: user.id, username: user.username }, SECRET, { expiresIn: '1h' })
-  res.cookie('token', token, { httpOnly: true, maxAge: 60 * 60 * 1000 })
-  res.json({ id: user.id, username: user.username })
+router.post('/login', (req, res, next) => {
+  passport.authenticate('local', (err, user) => {
+    if (err) return next(err)
+    if (!user) return res.status(401).send('Unauthorized')
+    req.logIn(user, (err) => {
+      if (err) return next(err)
+      res.json({ id: user.id, email: user.email })
+    })
+  })(req, res, next)
+})
+
+router.post('/logout', (req, res) => {
+  req.logout(() => {
+    res.json({ message: 'Logged out' })
+  })
 })
 
 export default router

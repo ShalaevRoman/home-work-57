@@ -1,16 +1,4 @@
-import jwt from 'jsonwebtoken'
-
-export const SECRET = process.env.JWT_SECRET
-
 export function authMiddleware(req, res, next) {
-  const token = req.cookies.token
-  if (!token) {
-    return res.status(401).send('Unauthorized')
-  }
-  try {
-    req.user = jwt.verify(token, SECRET)
-    next()
-  } catch {
-    res.status(401).send('Unauthorized')
-  }
+  if (req.isAuthenticated()) return next()
+  res.status(401).send('Unauthorized')
 }

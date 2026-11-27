@@ -1,6 +1,6 @@
-# Express Server with PUG & EJS Template Engines
+# Express Server with Passport Auth, PUG & EJS
 
-Express сервер з MVC архітектурою, що використовує шаблонізатори **PUG** та **EJS** для рендерингу HTML сторінок.
+Express сервер з MVC архітектурою, авторизацією через **Passport.js** (сесії) та шаблонізаторами **PUG** і **EJS** для рендерингу HTML сторінок.
 
 ## Встановлення
 
@@ -48,14 +48,21 @@ npm run test:coverage
 | POST | `/theme` | Зберегти тему оформлення в cookie `{ theme: string }` |
 | GET | `/theme` | Отримати поточну тему з cookie |
 
-### Auth (JWT авторизація)
+### Auth (Passport авторизація)
 
 | Метод | URL | Опис |
 |-------|-----|------|
-| POST | `/auth/register` | Реєстрація `{ username: string, password: string }` → JWT в httpOnly cookie |
-| POST | `/auth/login` | Вхід `{ username: string, password: string }` → JWT в httpOnly cookie |
+| POST | `/auth/register` | Реєстрація `{ email: string, password: string }` → `{ id, email }` |
+| POST | `/auth/login` | Вхід `{ email: string, password: string }` → сесія в httpOnly cookie |
+| POST | `/auth/logout` | Вихід — знищує сесію |
 
-### Users (PUG шаблони, потребують JWT)
+### Protected
+
+| Метод | URL | Опис |
+|-------|-----|------|
+| GET | `/protected` | Захищений маршрут — потребує активної сесії → `{ message, user }` |
+
+### Users (PUG шаблони, потребують сесії)
 
 | Метод | URL | Опис |
 |-------|-----|------|
@@ -77,11 +84,13 @@ npm run test:coverage
 
 ## Авторизація
 
-Маршрути `/users` захищені JWT. Для доступу потрібно:
-1. Зареєструватись: `POST /auth/register`
-2. Або увійти: `POST /auth/login`
+Авторизація побудована на **Passport.js** з локальною стратегією (email + пароль) та сесіями через `express-session`.
 
-Токен зберігається автоматично в `httpOnly` cookie і передається при кожному запиті.
+Маршрути `/users` та `/protected` захищені — потребують активної сесії. Для доступу:
+1. Зареєструватись: `POST /auth/register` з `{ email, password }`
+2. Увійти: `POST /auth/login` з `{ email, password }`
+
+Сесія зберігається автоматично в `httpOnly` cookie і передається при кожному запиті. Для виходу: `POST /auth/logout`.
 
 ## Коди відповідей
 
@@ -91,7 +100,7 @@ npm run test:coverage
 | `201` | Успішний POST (ресурс створено) |
 | `204` | Успішний DELETE (без тіла відповіді) |
 | `400` | Bad Request — відсутнє або порожнє обов'язкове поле |
-| `401` | Unauthorized — відсутній або невалідний JWT токен |
+| `401` | Unauthorized — відсутня або невалідна сесія |
 | `404` | Not Found — ресурс не існує |
 | `409` | Conflict — користувач вже існує |
 | `500` | Internal Server Error — непередбачена помилка |
@@ -114,15 +123,17 @@ src/
   models/
     users.mjs
     articles.mjs
+  config/
+    passport.mjs     — Passport стратегія, serializeUser, deserializeUser
   middlewares/
-    auth.mjs         — JWT перевірка
+    auth.mjs         — перевірка Passport сесії (isAuthenticated)
     validation.mjs
     accessControl.mjs
     errorHandler.mjs
     logger.mjs
   routes/
-    index.mjs        — кореневі маршрути + тема
-    auth.mjs         — реєстрація та логін
+    index.mjs        — кореневі маршрути + тема + /protected
+    auth.mjs         — реєстрація, логін, логаут (Passport)
     users.mjs
     articles.mjs
   server.mjs

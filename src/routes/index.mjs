@@ -22,4 +22,12 @@ router.get('/theme', (req, res) => {
   res.json({ theme })
 })
 
+router.get('/protected', (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).send('Unauthorized')
+  }
+  const { password, ...safeUser } = req.user
+  res.json({ message: 'Protected data', user: safeUser })
+})
+
 export default router
